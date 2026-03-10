@@ -2,6 +2,7 @@ import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import { Database, FilePlus, Users, Loader2, Mail, Phone, Home, AlertCircle, Check, Bell, Ban, Trash2, Edit3 } from 'lucide-react';
+import { TenantModals, TenantActionButtons } from './TenantModals';
 
 export default async function TenantsPage() {
     const session = await auth();
@@ -34,6 +35,12 @@ export default async function TenantsPage() {
         }
     });
 
+    // Fetch units for the create modal dropdown
+    const units = await prisma.unit.findMany({
+        where: { organizationId: orgId, deletedAt: null },
+        include: { property: true }
+    });
+
     return (
         <div className="max-w-7xl mx-auto pb-20">
             {/* Header */}
@@ -47,11 +54,7 @@ export default async function TenantsPage() {
                         <Database className="h-5 w-5" />
                         <span>Daten sichern</span>
                     </button>
-                    {/* In a real scenario, this opens the Lease Modal (React Client Component) */}
-                    <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium shadow flex items-center gap-2 transition-transform hover:scale-105">
-                        <FilePlus className="h-5 w-5" />
-                        <span>Neuer Mietvertrag</span>
-                    </button>
+                    <TenantModals units={units} />
                 </div>
             </header>
 
@@ -135,15 +138,7 @@ export default async function TenantsPage() {
                                     </td>
 
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex flex-col gap-2 items-end">
-                                            <button className="text-xs bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-1 w-32 justify-center shadow-sm">
-                                                <Edit3 className="h-3 w-3" /> Bearbeiten
-                                            </button>
-                                            {/* Delete uses soft delete in real app */}
-                                            <button className="text-xs bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg hover:bg-red-100 flex items-center gap-1 w-32 justify-center">
-                                                <Ban className="h-3 w-3" /> Kündigen
-                                            </button>
-                                        </div>
+                                        <TenantActionButtons tenantId={tenant.id} />
                                     </td>
                                 </tr>
                             );

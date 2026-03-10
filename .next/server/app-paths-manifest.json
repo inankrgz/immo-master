@@ -1,13 +1,17 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/admin/organizations/page": "app/admin/organizations/page.js",
   "/api/finance/charges/route": "app/api/finance/charges/route.js",
-  "/finance/page": "app/finance/page.js",
+  "/api/admin/impersonate/route": "app/api/admin/impersonate/route.js",
+  "/api/tenants/route": "app/api/tenants/route.js",
   "/api/finance/transactions/route": "app/api/finance/transactions/route.js",
   "/api/properties/route": "app/api/properties/route.js",
-  "/properties/[id]/page": "app/properties/[id]/page.js",
+  "/finance/page": "app/finance/page.js",
+  "/api/admin/impersonate/stop/route": "app/api/admin/impersonate/stop/route.js",
   "/page": "app/page.js",
-  "/api/tenants/route": "app/api/tenants/route.js",
-  "/tenants/page": "app/tenants/page.js",
   "/properties/page": "app/properties/page.js",
+  "/properties/[id]/page": "app/properties/[id]/page.js",
+  "/providers/page": "app/providers/page.js",
+  "/tenants/page": "app/tenants/page.js",
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js"
 }

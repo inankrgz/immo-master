@@ -1,7 +1,8 @@
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
-import { Landmark, TrendingUp, Clock, ScanLine, ArrowRightLeft, UploadCloud, Plug, FileText, Check, AlertCircle } from 'lucide-react';
+import { Landmark, TrendingUp, Clock, ScanLine, ArrowRightLeft, Plug, Check, AlertCircle } from 'lucide-react';
+import { CsvUpload } from './CsvUpload';
 
 export default async function FinancePage() {
     const session = await auth();
@@ -18,6 +19,13 @@ export default async function FinancePage() {
     const properties = await prisma.property.findMany({
         where: { organizationId: orgId, deletedAt: null },
         include: { units: true }
+    });
+
+    // Fetch transactions for the GoBD Ledger
+    const transactions = await prisma.bankTransaction.findMany({
+        where: { organizationId: orgId },
+        orderBy: { bookingDate: 'desc' },
+        take: 50 // Limit for display
     });
 
     // Mock calculations for the KPI Grid to establish the UI structure
@@ -100,31 +108,48 @@ export default async function FinancePage() {
                     </div>
                 </div>
 
-                <div className="p-12 text-center">
-                    <div className="inline-flex bg-amber-50 rounded-full p-4 mb-4">
-                        <AlertCircle className="h-8 w-8 text-amber-500" />
-                    </div>
-                    <h4 className="text-lg font-bold text-slate-900 mb-2">Append-Only Ledger wird initialisiert</h4>
-                    <p className="text-slate-500 max-w-md mx-auto mb-6">
-                        Die Finanzdaten werden unter Einhaltung der Revisionssicherheit (keine UPDATE/DELETE Operationen auf Buchungen) aus der Datenbank geladen.
-                    </p>
-                    <button className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 flex items-center gap-2 mx-auto">
-                        <Plug className="h-4 w-4" /> Bank API Verbinden
-                    </button>
+                <div className="p-0">
+                    {transactions.length > 0 ? (
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                                <tr>
+                                    <th className="px-6 py-4 font-semibold">Buchungstag</th>
+                                    <th className="px-6 py-4 font-semibold">Details / Verwendungszweck</th>
+                                    <th className="px-6 py-4 font-semibold text-right">Betrag</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {transactions.map(t => (
+                                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {new Date(t.bookingDate).toLocaleDateString('de-DE')}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-slate-900 line-clamp-1">{t.purpose || 'Kein Verwendungszweck'}</div>
+                                            <div className="text-xs text-slate-500 font-mono mt-0.5">{t.iban || '-'}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className={`font-mono font-bold ${Number(t.amount) >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                                {Number(t.amount) >= 0 ? '+' : ''}{Number(t.amount).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="p-12 text-center text-slate-500">
+                            Keine Kontobewegungen gefunden.
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Reconciliation Action Box */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50/50 hover:bg-slate-50 hover:border-indigo-300 transition-all cursor-pointer group">
-                    <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                        <UploadCloud className="h-8 w-8 text-indigo-600" />
-                    </div>
-                    <h4 className="text-slate-900 font-bold mb-1">Kontoauszug hier ablegen (.csv)</h4>
-                    <p className="text-slate-500 text-sm">Für den manuellen Abgleich ohne API</p>
-                </div>
+                <CsvUpload />
 
-                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-8">
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-8 h-full">
                     <h4 className="flex items-center gap-2 font-bold text-indigo-900 mb-4">
                         <Check className="h-5 w-5 text-indigo-600" /> Offene Posten (OP-Liste)
                     </h4>

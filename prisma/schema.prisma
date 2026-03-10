@@ -24,6 +24,9 @@ model Organization {
   auditLogs   AuditLog[]
   transactions BankTransaction[]
   charges     Charge[]
+  providers   Provider[]
+  tickets     Ticket[]
+  providerJobs ProviderJob[]
 
   @@map("organizations")
 }
@@ -240,7 +243,105 @@ enum SyncStatus {
 }
 
 // ----------------------------------------------------------------------------
-// 5. ISO 27001 AUDIT LOGS
+// 5. PROVIDERS & TICKETS (Maintenance CRM)
+// ----------------------------------------------------------------------------
+
+model Provider {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  
+  name           String
+  category       String   // e.g., Handwerker, Reinigung, Energie
+  contactPerson  String?
+  email          String?
+  phone          String?
+  address        String?
+  notes          String?
+  rating         Int?     @default(0) // 0-5 stars
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  jobs         ProviderJob[]
+  tickets      Ticket[]
+
+  @@map("providers")
+}
+
+model ProviderJob {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  providerId     String   @db.Uuid
+  ticketId       String?  @db.Uuid
+  
+  title          String
+  status         JobStatus @default(OPEN)
+  amount         Decimal?  @db.Decimal(10, 2)
+  invoiceNumber  String?
+  dueDate        DateTime? @db.Date
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  provider     Provider     @relation(fields: [providerId], references: [id])
+  ticket       Ticket?      @relation(fields: [ticketId], references: [id])
+
+  @@map("provider_jobs")
+}
+
+enum JobStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+model Ticket {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  
+  title          String
+  description    String
+  status         TicketStatus @default(OPEN)
+  priority       TicketPriority @default(MEDIUM)
+  
+  propertyId     String?  @db.Uuid // Optional, linked to property
+  tenantId       String?  @db.Uuid // Optional, reported by tenant
+  providerId     String?  @db.Uuid // Optional, assigned provider
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  provider     Provider?    @relation(fields: [providerId], references: [id])
+  jobs         ProviderJob[] // Optional invoices for this ticket
+
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_PROVIDER
+  WAITING_FOR_TENANT
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ----------------------------------------------------------------------------
+// 6. ISO 27001 AUDIT LOGS
 // ----------------------------------------------------------------------------
 
 model AuditLog {

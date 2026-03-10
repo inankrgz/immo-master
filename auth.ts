@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { cookies } from 'next/headers';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -46,8 +47,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
         async session({ session, token }) {
             if (token && session.user) {
-                (session.user as any).organizationId = token.organizationId;
+                // Impersonation Logic for Super Admins
+                const cookieStore = cookies();
+                const impersonatedOrgId = cookieStore.get('impersonatedOrgId')?.value;
+
+                if (impersonatedOrgId && (token.role === 'OWNER' || token.role === 'ADMIN')) {
+                    (session.user as any).organizationId = impersonatedOrgId;
+                    (session.user as any).isImpersonating = true;
+                } else {
+                    (session.user as any).organizationId = token.organizationId;
+                    (session.user as any).isImpersonating = false;
+                }
+
                 (session.user as any).role = token.role;
+                (session.user as any).originalOrgId = token.organizationId; // Keep track of the real org
             }
             return session;
         }
