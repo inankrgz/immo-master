@@ -1,13 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Plus, Briefcase, Receipt, Star, Users, FileText, AlertCircle, CheckCircle, Mail, ChevronRight, X, Loader2, Check } from 'lucide-react';
+import { Search, Plus, Briefcase, Receipt, Star, Users, FileText, AlertCircle, CheckCircle, Mail, ChevronRight, X, Loader2, Check, Sparkles } from 'lucide-react';
 import { createProvider, payProviderJob } from './actions';
 
 export function ProviderDashboard({ initialProviders, initialJobs }: { initialProviders: any[], initialJobs: any[] }) {
     const [activeTab, setActiveTab] = useState<'list' | 'invoices'>('list');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isSearching, setIsSearching] = useState(false); // For Google Mock
+
+    // AI Email Modal State
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [emailDraftProvider, setEmailDraftProvider] = useState<any>(null);
+    const [emailStep, setEmailStep] = useState<'initial' | 'draft'>('initial');
+    const [emailTopic, setEmailTopic] = useState('');
+    const [emailContext, setEmailContext] = useState('');
+    const [emailGeneratedContent, setEmailGeneratedContent] = useState('');
+    const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
     // Calculate KPIs
     const activeJobsCount = initialJobs.filter(j => j.status !== 'PAID').length;
@@ -19,6 +28,26 @@ export function ProviderDashboard({ initialProviders, initialJobs }: { initialPr
         const formData = new FormData(e.currentTarget);
         await createProvider(formData);
         setIsAddModalOpen(false);
+    }
+
+    async function handleGenerateDraft() {
+        if (!emailTopic) {
+            alert("Bitte wählen Sie ein Thema.");
+            return;
+        }
+        setEmailStep('draft');
+        setIsGeneratingEmail(true);
+        setEmailGeneratedContent("Generiere intelligenten Entwurf...");
+
+        // Simulate AI Delay
+        await new Promise(r => setTimeout(r, 1200));
+
+        let body = `ich wende mich heute an Sie wegen einer ${emailTopic}-Anfrage.`;
+        if (emailContext) body += `\n\nZusätzlicher Kontext:\n${emailContext}`;
+
+        const draftedText = `Sehr geehrte Damen und Herren,\n\n${body}\n\nBitte teilen Sie uns Ihre Verfügbarkeit mit.\n\nMit freundlichen Grüßen,\nIhre Hausverwaltung`;
+        setEmailGeneratedContent(draftedText);
+        setIsGeneratingEmail(false);
     }
 
     return (
@@ -123,7 +152,9 @@ export function ProviderDashboard({ initialProviders, initialJobs }: { initialPr
                                         )}
 
                                         <div className="flex gap-2">
-                                            <button className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg outline-none transition-colors" title="Email schreiben">
+                                            <button
+                                                onClick={() => { setEmailDraftProvider(p); setEmailStep('initial'); setIsEmailModalOpen(true); }}
+                                                className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg outline-none transition-colors" title="Email schreiben">
                                                 <Mail className="h-5 w-5 outline-none" />
                                             </button>
                                             <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg outline-none transition-colors" title="Details">
@@ -217,6 +248,77 @@ export function ProviderDashboard({ initialProviders, initialJobs }: { initialPr
                                 <button type="submit" className="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg outline-none hover:bg-indigo-700 shadow-lg shadow-indigo-500/20">Speichern</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* AI EMAIL MODAL */}
+            {isEmailModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                <Sparkles className="text-purple-600 h-5 w-5" /> Email Entwurf
+                            </h3>
+                            <button onClick={() => setIsEmailModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+                        </div>
+
+                        {emailStep === 'initial' ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">Empfänger</label>
+                                    <input type="text" value={emailDraftProvider?.email || emailDraftProvider?.name || ''} readOnly className="w-full p-2 bg-slate-50 border border-slate-200 rounded text-sm text-slate-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">Thema</label>
+                                    <select value={emailTopic} onChange={e => setEmailTopic(e.target.value)} className="w-full p-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none">
+                                        <option value="">- Thema wählen -</option>
+                                        <option value="Reparatur">Reparaturanfrage</option>
+                                        <option value="Angebot">Angebot anfordern</option>
+                                        <option value="Rechnung">Rechnungsrückfrage</option>
+                                        <option value="Allgemein">Allgemeine Anfrage</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">KI Kontext (Optional)</label>
+                                    <textarea
+                                        value={emailContext}
+                                        onChange={e => setEmailContext(e.target.value)}
+                                        className="w-full h-24 p-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                                        placeholder="Zusätzliche Infos für die KI (z.B. 'Tür im 2. OG klemmt')"
+                                    ></textarea>
+                                </div>
+                                <div className="pt-4 flex justify-end gap-2 mt-4">
+                                    <button onClick={() => setIsEmailModalOpen(false)} className="px-4 py-2 text-slate-500 font-medium text-sm">Abbrechen</button>
+                                    <button onClick={handleGenerateDraft} className="px-5 py-2 bg-purple-600 text-white font-bold rounded shadow-lg shadow-purple-500/20 hover:bg-purple-700">Entwurf generieren</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Betreff</label>
+                                    <input type="text" defaultValue={`Anfrage: ${emailTopic}`} className="w-full p-2 bg-slate-50 border border-slate-200 shadow-inner rounded text-sm font-semibold" />
+                                </div>
+                                <div>
+                                    <textarea
+                                        value={emailGeneratedContent}
+                                        onChange={e => setEmailGeneratedContent(e.target.value)}
+                                        readOnly={isGeneratingEmail}
+                                        className={`w-full h-48 p-3 border border-slate-200 rounded text-sm ${isGeneratingEmail ? 'bg-slate-50 text-slate-500' : 'focus:ring-2 focus:ring-purple-500 outline-none'}`}
+                                    ></textarea>
+                                </div>
+                                <div className="pt-2 flex justify-end gap-2">
+                                    <button onClick={() => setEmailStep('initial')} className="px-4 py-2 text-slate-500 font-medium text-sm">Zurück</button>
+                                    <button
+                                        disabled={isGeneratingEmail}
+                                        onClick={() => { alert('Email gesendet!'); setIsEmailModalOpen(false); }}
+                                        className="px-5 py-2 bg-purple-600 text-white font-bold rounded shadow-lg shadow-purple-500/20 hover:bg-purple-700 disabled:opacity-50"
+                                    >
+                                        Absenden
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
