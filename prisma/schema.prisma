@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// 1. IDENTITY & MULTI-TENANCY
+// ----------------------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  properties  Property[]
+  tenants     Tenant[]
+  bankSyncs   BankSyncRun[]
+  auditLogs   AuditLog[]
+  transactions BankTransaction[]
+  charges     Charge[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  email          String   @unique
+  name           String?
+  role           UserRole @default(MEMBER)
+  mfaEnabled     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  READ_ONLY
+}
+
+// ----------------------------------------------------------------------------
+// 2. CORE REAL ESTATE DATA
+// ----------------------------------------------------------------------------
+
+model Property {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  street         String
+  city           String
+  zipCode        String
+  country        String   @default("DE")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // Soft delete für DSGVO
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  units        Unit[]
+
+  @@unique([organizationId, id]) // Wichtig für Composite Foreign Keys
+  @@map("properties")
+}
+
+model Unit {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  propertyId     String   @db.Uuid
+  name           String   // z.B. "WE 01"
+  type           UnitType
+  sizeSqm        Float?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  property Property @relation(fields: [organizationId, propertyId], references: [organizationId, id], onDelete: Cascade)
+  leases   Lease[]
+
+  @@unique([organizationId, id])
+  @@map("units")
+}
+
+enum UnitType {
+  RESIDENTIAL
+  COMMERCIAL
+  PARKING
+  OTHER
+}
+
+// ----------------------------------------------------------------------------
+// 3. TENANTS & LEASES (Historisiert)
+// ----------------------------------------------------------------------------
+
+model Tenant {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? 
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leases       Lease[]
+
+  @@unique([organizationId, id])
+  @@map("tenants")
+}
+
+model Lease {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  unitId         String   @db.Uuid
+  tenantId       String   @db.Uuid
+  
+  startDate      DateTime @db.Date // Wichtig! Nur Datum
+  endDate        DateTime? @db.Date // Null = Unbefristet
+  depositAmount  Decimal?  @db.Decimal(10, 2)
+  depositPaid    Boolean   @default(false)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? 
+
+  unit   Unit   @relation(fields: [organizationId, unitId], references: [organizationId, id])
+  tenant Tenant @relation(fields: [organizationId, tenantId], references: [organizationId, id])
+
+  charges Charge[]
+
+  @@unique([organizationId, id])
+  @@map("leases")
+}
+
+// ----------------------------------------------------------------------------
+// 4. FINANCE (GoBD Compliant Ledger)
+// ----------------------------------------------------------------------------
+
+// Soll (Forderung)
+model Charge {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  leaseId        String   @db.Uuid
+  
+  type           ChargeType
+  amount         Decimal  @db.Decimal(10, 2)
+  dueDate        DateTime @db.Date
+  description    String?
+  
+  // GoBD: Einmal gebucht, darf es nicht mehr verändert oder gelöscht werden.
+  // Fehler müssen durch ein neues Charge mit negativem Betrag (Storno) korrigiert werden.
+  isCancelled    Boolean  @default(false) 
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  lease        Lease        @relation(fields: [organizationId, leaseId], references: [organizationId, id])
+  allocations  Allocation[]
+
+  @@map("charges")
+}
+
+enum ChargeType {
+  RENT_NET
+  UTILITY_PREPAYMENT
+  HEATING_PREPAYMENT
+  DEPOSIT
+  ONE_TIME_FEE
+  CANCELLATION
+}
+
+// Haben (Bankeingang)
+model BankTransaction {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  
+  iban           String
+  bookingDate    DateTime @db.Date
+  amount         Decimal  @db.Decimal(10, 2)
+  purpose        String?
+  counterparty   String?
+  referenceId    String?  @unique // Externe Bank-ID zur Vermeidung von Duplikaten
+  
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  allocations  Allocation[]
+
+  @@map("bank_transactions")
+}
+
+// Verknüpfung von Soll und Haben
+model Allocation {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chargeId         String   @db.Uuid
+  transactionId    String   @db.Uuid
+  amountAllocated  Decimal  @db.Decimal(10, 2)
+
+  createdAt        DateTime @default(now())
+
+  charge       Charge          @relation(fields: [chargeId], references: [id])
+  transaction  BankTransaction @relation(fields: [transactionId], references: [id])
+
+  @@map("allocations")
+}
+
+model BankSyncRun {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  status         SyncStatus
+  recordsFetched Int      @default(0)
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  errorMessage   String?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("bank_sync_runs")
+}
+
+enum SyncStatus {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+// ----------------------------------------------------------------------------
+// 5. ISO 27001 AUDIT LOGS
+// ----------------------------------------------------------------------------
+
+model AuditLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String?  @db.Uuid // Kann Null sein für System-Aktionen
+  
+  action         String   // e.g., "CREATE_PROPERTY", "UPDATE_LEASE"
+  tableName      String
+  recordId       String   @db.Uuid
+  oldData        Json?
+  newData        Json?
+  ipAddress      String?
+  
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

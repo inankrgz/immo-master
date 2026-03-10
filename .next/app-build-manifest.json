@@ -1,0 +1,59 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/app/_not-found/page-36ed3747d6ad1e0c.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/css/432a61c52c3b27d7.css",
+      "static/chunks/231-03a314f93135efb9.js",
+      "static/chunks/app/layout-0081e20037f1a5fd.js"
+    ],
+    "/finance/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/app/finance/page-a0d2a29a1cc848d3.js"
+    ],
+    "/properties/[id]/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/231-03a314f93135efb9.js",
+      "static/chunks/app/properties/[id]/page-779898a4c0df0100.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/231-03a314f93135efb9.js",
+      "static/chunks/app/page-fb62a84b9645d11c.js"
+    ],
+    "/tenants/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/231-03a314f93135efb9.js",
+      "static/chunks/app/tenants/page-5f7b5df9f9d6ce10.js"
+    ],
+    "/properties/page": [
+      "static/chunks/webpack-82b2ba201d35e58a.js",
+      "static/chunks/fd9d1056-62aaf4b921c84028.js",
+      "static/chunks/23-87590a694e7c0d18.js",
+      "static/chunks/main-app-bf207099ce9ec1b6.js",
+      "static/chunks/231-03a314f93135efb9.js",
+      "static/chunks/app/properties/page-2fb693ed1cbb6367.js"
+    ]
+  }
+}
